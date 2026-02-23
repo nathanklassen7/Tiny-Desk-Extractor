@@ -50,6 +50,17 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     return URL.createObjectURL(blob);
   }
 
+  const FFMPEG_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm";
+  const CORE_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+
+  async function createWorkerBlobURL() {
+    const resp = await fetch(`${FFMPEG_BASE}/worker.js`);
+    let src = await resp.text();
+    src = src.replace(/from\s+["']\.\/([^"']+)["']/g, `from "${FFMPEG_BASE}/$1"`);
+    const blob = new Blob([src], { type: "text/javascript" });
+    return URL.createObjectURL(blob);
+  }
+
   async function loadFFmpeg() {
     if (ffmpegInstance) return ffmpegInstance;
     if (ffmpegLoading) {
@@ -58,16 +69,13 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     }
     ffmpegLoading = true;
 
-    const { FFmpeg } = await import(
-      "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/ffmpeg.min.js"
-    );
-    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+    const { FFmpeg } = await import(`${FFMPEG_BASE}/classes.js`);
 
     const statusEl = $("#export-status");
-    const ffmpeg = new FFmpeg();
-    const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript");
+    const classWorkerURL = await createWorkerBlobURL();
+    const coreURL = await toBlobURL(`${CORE_BASE}/ffmpeg-core.js`, "text/javascript");
     const wasmURL = await toBlobURL(
-      `${baseURL}/ffmpeg-core.wasm`,
+      `${CORE_BASE}/ffmpeg-core.wasm`,
       "application/wasm",
       (loaded, total) => {
         const mb = (loaded / 1024 / 1024).toFixed(1);
@@ -75,8 +83,10 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
         if (statusEl) statusEl.textContent = `Downloading ffmpeg… ${mb} / ${totalMb} MB`;
       }
     );
+
     if (statusEl) statusEl.textContent = "Initializing ffmpeg…";
-    await ffmpeg.load({ coreURL, wasmURL });
+    const ffmpeg = new FFmpeg();
+    await ffmpeg.load({ classWorkerURL, coreURL, wasmURL });
 
     ffmpegInstance = ffmpeg;
     ffmpegLoading = false;
