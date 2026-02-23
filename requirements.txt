@@ -1,0 +1,5 @@
+flask
+pydub
+mutagen
+audioop-lts
+yt-dlp

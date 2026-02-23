@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concert Splitter</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Concert Splitter</h1>
+    <p class="subtitle">Split a concert recording into individual tracks</p>
+  </header>
+
+  <main>
+    <!-- Upload -->
+    <section id="upload-section">
+      <div class="source-tabs">
+        <button class="source-tab active" data-tab="file">Upload File</button>
+        <button class="source-tab" data-tab="youtube">YouTube URL</button>
+      </div>
+
+      <div id="tab-file" class="tab-content">
+        <label class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept=".mp3" hidden>
+          <span class="upload-icon">&#9835;</span>
+          <span class="upload-text">Drop an MP3 here or click to browse</span>
+        </label>
+      </div>
+
+      <div id="tab-youtube" class="tab-content hidden">
+        <div class="yt-input-row">
+          <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=...">
+          <button id="yt-download-btn">Download</button>
+        </div>
+      </div>
+
+      <div id="upload-progress" class="hidden">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <span id="progress-text">Uploading…</span>
+      </div>
+    </section>
+
+    <!-- Waveform & Controls (hidden until loaded) -->
+    <section id="editor-section" class="hidden">
+      <!-- Metadata -->
+      <div class="metadata-row">
+        <div class="field">
+          <label for="artist-input">Artist</label>
+          <input type="text" id="artist-input" placeholder="Artist name">
+        </div>
+        <div class="field">
+          <label for="album-input">Album</label>
+          <input type="text" id="album-input" placeholder="Album / concert name">
+        </div>
+      </div>
+
+      <!-- Waveform -->
+      <div id="waveform"></div>
+      <div id="waveform-time">
+        <span id="current-time">0:00</span>
+        <span id="total-time">0:00</span>
+      </div>
+
+      <!-- Transport & zoom -->
+      <div class="controls-row">
+        <button id="play-btn" title="Play / Pause">&#9654; Play</button>
+        <button id="add-marker-btn" title="Add split at playhead">&#43; Add Split</button>
+        <div class="zoom-control">
+          <label for="zoom-slider">Zoom</label>
+          <input type="range" id="zoom-slider" min="1" max="500" value="1">
+        </div>
+      </div>
+
+      <!-- Track list -->
+      <h2>Tracks</h2>
+      <div id="track-list"></div>
+
+      <!-- Export -->
+      <button id="export-btn" class="export-btn">Export All Tracks</button>
+      <div id="export-status" class="hidden"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/wavesurfer.min.js"></script>
+  <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/plugins/regions.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
