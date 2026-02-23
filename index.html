@@ -15,11 +15,11 @@
   <main>
     <!-- Upload -->
     <section id="upload-section">
-      <label class="upload-area" id="upload-area">
+      <div class="upload-area" id="upload-area">
         <input type="file" id="file-input" accept=".mp3" hidden>
         <span class="upload-icon">&#9835;</span>
         <span class="upload-text">Drop an MP3 here or click to browse</span>
-      </label>
+      </div>
       <div id="upload-progress" class="hidden">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         <span id="progress-text">Loading…</span>
@@ -69,7 +69,6 @@
 
   <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/wavesurfer.min.js"></script>
   <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/plugins/regions.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
   <script type="module" src="static/app.js"></script>
 </body>

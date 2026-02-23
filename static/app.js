@@ -29,9 +29,24 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s.padStart(5, "0")}`;
   }
 
-  async function toBlobURL(url, mimeType) {
+  async function toBlobURL(url, mimeType, onProgress) {
     const resp = await fetch(url);
-    const blob = new Blob([await resp.arrayBuffer()], { type: mimeType });
+    if (!onProgress || !resp.headers.get("content-length")) {
+      const blob = new Blob([await resp.arrayBuffer()], { type: mimeType });
+      return URL.createObjectURL(blob);
+    }
+    const total = parseInt(resp.headers.get("content-length"), 10);
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let loaded = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.length;
+      onProgress(loaded, total);
+    }
+    const blob = new Blob(chunks, { type: mimeType });
     return URL.createObjectURL(blob);
   }
 
@@ -43,14 +58,25 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     }
     ffmpegLoading = true;
 
-    const { FFmpeg } = window.FFmpegWASM;
-    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+    const { FFmpeg } = await import(
+      "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/ffmpeg.min.js"
+    );
+    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 
+    const statusEl = $("#export-status");
     const ffmpeg = new FFmpeg();
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-    });
+    const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript");
+    const wasmURL = await toBlobURL(
+      `${baseURL}/ffmpeg-core.wasm`,
+      "application/wasm",
+      (loaded, total) => {
+        const mb = (loaded / 1024 / 1024).toFixed(1);
+        const totalMb = (total / 1024 / 1024).toFixed(1);
+        if (statusEl) statusEl.textContent = `Downloading ffmpeg… ${mb} / ${totalMb} MB`;
+      }
+    );
+    if (statusEl) statusEl.textContent = "Initializing ffmpeg…";
+    await ffmpeg.load({ coreURL, wasmURL });
 
     ffmpegInstance = ffmpeg;
     ffmpegLoading = false;
