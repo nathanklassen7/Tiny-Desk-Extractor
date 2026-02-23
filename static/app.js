@@ -1,11 +1,16 @@
+import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dist/browser-id3-writer.mjs";
+
 (function () {
   "use strict";
 
   let ws = null;
   let regions = null;
-  let currentFilename = null;
-  let splitPoints = []; // seconds – sorted ascending, does NOT include 0 or duration
-  let excludedSet = new Set(); // indices of segments marked as dead space
+  let sourceFile = null; // the raw File object
+  let sourceArrayBuffer = null; // cached ArrayBuffer of the file
+  let splitPoints = [];
+  let excludedSet = new Set();
+  let ffmpegInstance = null;
+  let ffmpegLoading = false;
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -16,6 +21,38 @@
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
+
+  function fmtTimestamp(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = (seconds % 60).toFixed(2);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s.padStart(5, "0")}`;
+  }
+
+  async function loadFFmpeg() {
+    if (ffmpegInstance) return ffmpegInstance;
+    if (ffmpegLoading) {
+      while (!ffmpegInstance) await new Promise((r) => setTimeout(r, 100));
+      return ffmpegInstance;
+    }
+    ffmpegLoading = true;
+
+    const { FFmpeg } = window.FFmpegWASM;
+    const { toBlobURL } = window.FFmpegUtil;
+    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
+
+    const ffmpeg = new FFmpeg();
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+
+    ffmpegInstance = ffmpeg;
+    ffmpegLoading = false;
+    return ffmpeg;
+  }
+
+  // ── Regions ─────────────────────────────────────────────
 
   function rebuildRegions() {
     if (!ws) return;
@@ -62,9 +99,7 @@
       nameInput.placeholder = excluded ? "dead space" : `Track ${i + 1}`;
       nameInput.dataset.index = i;
       if (excluded) nameInput.disabled = true;
-      const prev = container.querySelector(
-        `input[data-index="${i}"]`
-      );
+      const prev = container.querySelector(`input[data-index="${i}"]`);
       if (prev) nameInput.value = prev.value;
 
       const times = document.createElement("span");
@@ -77,11 +112,8 @@
       excludeBtn.title = excluded ? "Re-include this segment" : "Mark as dead space";
       excludeBtn.addEventListener("click", () => {
         const names = getTrackNames();
-        if (excludedSet.has(i)) {
-          excludedSet.delete(i);
-        } else {
-          excludedSet.add(i);
-        }
+        if (excludedSet.has(i)) excludedSet.delete(i);
+        else excludedSet.add(i);
         rebuildRegions();
         restoreTrackNames(names);
       });
@@ -109,8 +141,7 @@
       if (i > 0) {
         removeBtn.addEventListener("click", () => {
           const names = getTrackNames();
-          const removedIdx = i - 1;
-          splitPoints.splice(removedIdx, 1);
+          splitPoints.splice(i - 1, 1);
           const newExcluded = new Set();
           excludedSet.forEach((idx) => {
             if (idx < i) newExcluded.add(idx);
@@ -130,7 +161,6 @@
     }
   }
 
-  // Preserve track names across rebuilds
   function getTrackNames() {
     const names = {};
     document.querySelectorAll(".track-name").forEach((input) => {
@@ -147,18 +177,7 @@
     });
   }
 
-  // ── Source tabs ──────────────────────────────────────────
-
-  document.querySelectorAll(".source-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".source-tab").forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
-      document.querySelectorAll(".tab-content").forEach((c) => c.classList.add("hidden"));
-      $(`#tab-${tab.dataset.tab}`).classList.remove("hidden");
-    });
-  });
-
-  // ── File upload ────────────────────────────────────────
+  // ── File load (client-side) ────────────────────────────
 
   const fileInput = $("#file-input");
   const uploadArea = $("#upload-area");
@@ -185,92 +204,22 @@
     if (fileInput.files.length) handleFile(fileInput.files[0]);
   });
 
-  function handleFile(file) {
+  async function handleFile(file) {
     if (!file.name.toLowerCase().endsWith(".mp3")) {
       alert("Please select an MP3 file.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
+    sourceFile = file;
+    sourceArrayBuffer = await file.arrayBuffer();
 
     $("#upload-progress").classList.remove("hidden");
-    $("#progress-text").textContent = "Uploading…";
-    $("#progress-fill").style.width = "0%";
+    $("#progress-text").textContent = "Loading waveform…";
+    $("#progress-fill").style.width = "50%";
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/upload");
-
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        $("#progress-fill").style.width = pct + "%";
-        $("#progress-text").textContent = `Uploading… ${pct}%`;
-      }
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status === 200) {
-        const data = JSON.parse(xhr.responseText);
-        currentFilename = data.filename;
-        $("#progress-text").textContent = "Loading waveform…";
-        initWaveform(`/audio/${encodeURIComponent(data.filename)}`);
-      } else {
-        $("#progress-text").textContent = "Upload failed.";
-      }
-    });
-
-    xhr.send(formData);
+    const blobUrl = URL.createObjectURL(file);
+    initWaveform(blobUrl);
   }
-
-  // ── YouTube download ──────────────────────────────────
-
-  $("#yt-download-btn").addEventListener("click", async () => {
-    const url = $("#yt-url").value.trim();
-    if (!url) return;
-
-    $("#upload-progress").classList.remove("hidden");
-    $("#progress-fill").style.width = "0%";
-    $("#progress-text").textContent = "Downloading from YouTube…";
-    $("#yt-download-btn").disabled = true;
-
-    const pulse = setInterval(() => {
-      const el = $("#progress-fill");
-      const cur = parseFloat(el.style.width) || 0;
-      el.style.width = Math.min(cur + 0.5, 90) + "%";
-    }, 300);
-
-    try {
-      const resp = await fetch("/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-
-      clearInterval(pulse);
-
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error || "Download failed");
-      }
-
-      const data = await resp.json();
-      currentFilename = data.filename;
-      $("#progress-fill").style.width = "100%";
-      $("#progress-text").textContent = "Loading waveform…";
-
-      if (data.title) {
-        $("#album-input").value = data.title;
-      }
-
-      initWaveform(`/audio/${encodeURIComponent(data.filename)}`);
-    } catch (err) {
-      clearInterval(pulse);
-      $("#progress-text").textContent = "Error: " + err.message;
-    } finally {
-      $("#yt-download-btn").disabled = false;
-    }
-  });
 
   // ── Waveform ─────────────────────────────────────────────
 
@@ -308,14 +257,11 @@
       $("#current-time").textContent = fmt(t);
     });
 
-    ws.on("interaction", () => {
-      updatePlayButton();
-    });
-
+    ws.on("interaction", () => updatePlayButton());
     ws.on("play", updatePlayButton);
     ws.on("pause", updatePlayButton);
 
-    regions.on("region-updated", (region) => {
+    regions.on("region-updated", () => {
       const names = getTrackNames();
       syncSplitsFromRegions();
       rebuildRegions();
@@ -336,7 +282,9 @@
 
   function updatePlayButton() {
     if (!ws) return;
-    $("#play-btn").innerHTML = ws.isPlaying() ? "&#9646;&#9646; Pause" : "&#9654; Play";
+    $("#play-btn").innerHTML = ws.isPlaying()
+      ? "&#9646;&#9646; Pause"
+      : "&#9654; Play";
   }
 
   // ── Controls ─────────────────────────────────────────────
@@ -364,10 +312,10 @@
     ws.zoom(Number(e.target.value));
   });
 
-  // ── Export ───────────────────────────────────────────────
+  // ── Export (client-side: ffmpeg.wasm + browser-id3-writer + JSZip) ──
 
   $("#export-btn").addEventListener("click", async () => {
-    if (!ws || !currentFilename) return;
+    if (!ws || !sourceArrayBuffer) return;
 
     const dur = ws.getDuration();
     const points = [0, ...splitPoints, dur];
@@ -375,9 +323,7 @@
 
     for (let i = 0; i < points.length - 1; i++) {
       if (excludedSet.has(i)) continue;
-      const nameInput = document.querySelector(
-        `.track-name[data-index="${i}"]`
-      );
+      const nameInput = document.querySelector(`.track-name[data-index="${i}"]`);
       tracks.push({
         name: nameInput?.value || `Track ${tracks.length + 1}`,
         start: points[i],
@@ -390,40 +336,68 @@
       return;
     }
 
-    const payload = {
-      filename: currentFilename,
-      artist: $("#artist-input").value,
-      album: $("#album-input").value,
-      tracks,
-    };
-
     const status = $("#export-status");
+    const artist = $("#artist-input").value;
+    const album = $("#album-input").value;
+
     status.classList.remove("hidden");
-    status.textContent = "Splitting & tagging… this may take a moment.";
+    status.textContent = "Loading ffmpeg…";
     $("#export-btn").disabled = true;
 
     try {
-      const resp = await fetch("/split", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const ffmpeg = await loadFFmpeg();
 
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(err.error || "Export failed");
+      status.textContent = "Writing source file…";
+      await ffmpeg.writeFile("input.mp3", new Uint8Array(sourceArrayBuffer));
+
+      const zip = new JSZip();
+
+      for (let i = 0; i < tracks.length; i++) {
+        const track = tracks[i];
+        const safeName = track.name.replace(/[<>:"/\\|?*]/g, "_").trim();
+        const outName = `${String(i + 1).padStart(2, "0")} - ${safeName}.mp3`;
+
+        status.textContent = `Splitting track ${i + 1} of ${tracks.length}…`;
+
+        const ss = fmtTimestamp(track.start);
+        const to = fmtTimestamp(track.end);
+        await ffmpeg.exec([
+          "-i", "input.mp3",
+          "-ss", ss,
+          "-to", to,
+          "-c", "copy",
+          `out_${i}.mp3`,
+        ]);
+
+        const data = await ffmpeg.readFile(`out_${i}.mp3`);
+        await ffmpeg.deleteFile(`out_${i}.mp3`);
+
+        status.textContent = `Tagging track ${i + 1} of ${tracks.length}…`;
+
+        const writer = new ID3Writer(data.buffer);
+        writer.setFrame("TIT2", track.name);
+        if (artist) writer.setFrame("TPE1", [artist]);
+        if (album) writer.setFrame("TALB", album);
+        writer.setFrame("TRCK", String(i + 1));
+        writer.addTag();
+
+        zip.file(outName, writer.arrayBuffer);
       }
 
-      const blob = await resp.blob();
+      await ffmpeg.deleteFile("input.mp3");
+
+      status.textContent = "Creating zip…";
+      const blob = await zip.generateAsync({ type: "blob" });
+
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download =
-        ($("#album-input").value || "tracks") + ".zip";
+      a.download = (album || "tracks") + ".zip";
       a.click();
       URL.revokeObjectURL(a.href);
       status.textContent = "Export complete!";
     } catch (err) {
       status.textContent = "Error: " + err.message;
+      console.error(err);
     } finally {
       $("#export-btn").disabled = false;
     }

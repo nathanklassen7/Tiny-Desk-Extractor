@@ -1,40 +1,32 @@
 # Concert Splitter
 
-A local web tool for splitting full concert recordings into individually tagged MP3 tracks.
+A browser-based tool for splitting full concert recordings into individually tagged MP3 tracks. Runs entirely client-side -- no server required.
+
+**[Try it live](https://nathanklassen7.github.io/Tiny-Desk-Extractor/)**
 
 ## Features
 
-- **Upload an MP3** or **paste a YouTube URL** to load a concert recording
+- **Load an MP3** via drag-and-drop or file picker
 - **Interactive waveform** (wavesurfer.js) with zoom for precise split placement
 - **Preview** any segment before exporting
 - **Mark dead space** to exclude intros, applause, or gaps from the export
 - **Name each track** and set artist/album metadata
 - **Export** all tracks as a zip of tagged MP3s (ID3: title, artist, album, track number)
 
-## Requirements
+## How it works
 
-- Python 3.10+
-- [ffmpeg](https://ffmpeg.org/) (required by pydub for MP3 encoding)
+Everything runs in your browser:
 
-## Setup
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+- **[ffmpeg.wasm](https://ffmpegwasm.netlify.app/)** splits the MP3 without re-encoding (`-c copy`)
+- **[browser-id3-writer](https://github.com/browserkit/browser-id3-writer)** writes ID3v2 metadata tags
+- **[JSZip](https://stuk.github.io/jszip/)** bundles the output files for download
+- **[wavesurfer.js](https://wavesurfer-js.org/)** renders the waveform and handles region selection
 
 ## Usage
 
-```bash
-source venv/bin/activate
-python app.py
-```
-
-Open [http://localhost:5001](http://localhost:5001) in your browser.
-
-1. Upload an MP3 or paste a YouTube link
-2. Add split markers on the waveform at song boundaries
-3. Name each track and fill in artist/album
-4. Optionally mark segments as dead space to skip them
-5. Click **Export All Tracks** to download a zip of tagged MP3s
+1. Open `index.html` locally or visit the [GitHub Pages site](https://nathanklassen7.github.io/Tiny-Desk-Extractor/)
+2. Drop an MP3 of a full concert
+3. Add split markers on the waveform at song boundaries
+4. Name each track and fill in artist/album
+5. Optionally mark segments as dead space to skip them
+6. Click **Export All Tracks** to download a zip of tagged MP3s

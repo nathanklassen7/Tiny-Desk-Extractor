@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Concert Splitter</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
   <header>
@@ -15,29 +15,14 @@
   <main>
     <!-- Upload -->
     <section id="upload-section">
-      <div class="source-tabs">
-        <button class="source-tab active" data-tab="file">Upload File</button>
-        <button class="source-tab" data-tab="youtube">YouTube URL</button>
-      </div>
-
-      <div id="tab-file" class="tab-content">
-        <label class="upload-area" id="upload-area">
-          <input type="file" id="file-input" accept=".mp3" hidden>
-          <span class="upload-icon">&#9835;</span>
-          <span class="upload-text">Drop an MP3 here or click to browse</span>
-        </label>
-      </div>
-
-      <div id="tab-youtube" class="tab-content hidden">
-        <div class="yt-input-row">
-          <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=...">
-          <button id="yt-download-btn">Download</button>
-        </div>
-      </div>
-
+      <label class="upload-area" id="upload-area">
+        <input type="file" id="file-input" accept=".mp3" hidden>
+        <span class="upload-icon">&#9835;</span>
+        <span class="upload-text">Drop an MP3 here or click to browse</span>
+      </label>
       <div id="upload-progress" class="hidden">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-        <span id="progress-text">Uploading…</span>
+        <span id="progress-text">Loading…</span>
       </div>
     </section>
 
@@ -84,6 +69,9 @@
 
   <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/wavesurfer.min.js"></script>
   <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/plugins/regions.min.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/umd/util.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+  <script type="module" src="static/app.js"></script>
 </body>
 </html>
