@@ -29,6 +29,12 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s.padStart(5, "0")}`;
   }
 
+  async function toBlobURL(url, mimeType) {
+    const resp = await fetch(url);
+    const blob = new Blob([await resp.arrayBuffer()], { type: mimeType });
+    return URL.createObjectURL(blob);
+  }
+
   async function loadFFmpeg() {
     if (ffmpegInstance) return ffmpegInstance;
     if (ffmpegLoading) {
@@ -38,7 +44,6 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     ffmpegLoading = true;
 
     const { FFmpeg } = window.FFmpegWASM;
-    const { toBlobURL } = window.FFmpegUtil;
     const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd";
 
     const ffmpeg = new FFmpeg();
