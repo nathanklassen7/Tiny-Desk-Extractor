@@ -53,13 +53,21 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
   const FFMPEG_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm";
   const CORE_BASE = "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
 
-  async function createWorkerBlobURL() {
-    const resp = await fetch(`${FFMPEG_BASE}/worker.js`);
-    let src = await resp.text();
-    src = src.replace(/from\s+["']\.\/([^"']+)["']/g, `from "${FFMPEG_BASE}/$1"`);
-    const blob = new Blob([src], { type: "text/javascript" });
-    return URL.createObjectURL(blob);
-  }
+  let prefetchedAssets = null;
+  const prefetchPromise = (async () => {
+    const [{ FFmpeg }, classWorkerURL, coreURL, wasmURL] = await Promise.all([
+      import(`${FFMPEG_BASE}/classes.js`),
+      fetch(`${FFMPEG_BASE}/worker.js`)
+        .then((r) => r.text())
+        .then((src) => {
+          src = src.replace(/from\s+["']\.\/([^"']+)["']/g, `from "${FFMPEG_BASE}/$1"`);
+          return URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+        }),
+      toBlobURL(`${CORE_BASE}/ffmpeg-core.js`, "text/javascript"),
+      toBlobURL(`${CORE_BASE}/ffmpeg-core.wasm`, "application/wasm"),
+    ]);
+    prefetchedAssets = { FFmpeg, classWorkerURL, coreURL, wasmURL };
+  })();
 
   async function loadFFmpeg() {
     if (ffmpegInstance) return ffmpegInstance;
@@ -69,22 +77,14 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
     }
     ffmpegLoading = true;
 
-    const { FFmpeg } = await import(`${FFMPEG_BASE}/classes.js`);
-
     const statusEl = $("#export-status");
-    const classWorkerURL = await createWorkerBlobURL();
-    const coreURL = await toBlobURL(`${CORE_BASE}/ffmpeg-core.js`, "text/javascript");
-    const wasmURL = await toBlobURL(
-      `${CORE_BASE}/ffmpeg-core.wasm`,
-      "application/wasm",
-      (loaded, total) => {
-        const mb = (loaded / 1024 / 1024).toFixed(1);
-        const totalMb = (total / 1024 / 1024).toFixed(1);
-        if (statusEl) statusEl.textContent = `Downloading ffmpeg… ${mb} / ${totalMb} MB`;
-      }
-    );
+    if (!prefetchedAssets) {
+      if (statusEl) statusEl.textContent = "Downloading ffmpeg…";
+    }
+    await prefetchPromise;
 
     if (statusEl) statusEl.textContent = "Initializing ffmpeg…";
+    const { FFmpeg, classWorkerURL, coreURL, wasmURL } = prefetchedAssets;
     const ffmpeg = new FFmpeg();
     await ffmpeg.load({ classWorkerURL, coreURL, wasmURL });
 
