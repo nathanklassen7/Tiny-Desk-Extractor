@@ -145,7 +145,8 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
 
       const times = document.createElement("span");
       times.className = "track-times";
-      times.textContent = `${fmt(points[i])} – ${fmt(points[i + 1])}`;
+      const duration = points[i + 1] - points[i];
+      times.textContent = `${fmt(points[i])} – ${fmt(points[i + 1])}  (${fmt(duration)})`;
 
       const excludeBtn = document.createElement("button");
       excludeBtn.className = "exclude-btn" + (excluded ? " active" : "");
@@ -407,6 +408,8 @@ import { ID3Writer } from "https://cdn.jsdelivr.net/npm/browser-id3-writer@6/dis
           "-ss", ss,
           "-to", to,
           "-c", "copy",
+          "-write_xing", "0",
+          "-map_metadata", "-1",
           `out_${i}.mp3`,
         ]);
 
