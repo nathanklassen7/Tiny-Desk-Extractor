@@ -11,6 +11,7 @@ A browser-based tool for splitting full concert recordings into individually tag
 - **Preview** any segment before exporting
 - **Mark dead space** to exclude intros, applause, or gaps from the export
 - **Name each track** and set artist/album metadata
+- **Drag split boundaries** on the waveform to fine-tune them
 - **Export** all tracks as a zip of tagged MP3s (ID3: title, artist, album, track number)
 
 ## How it works
@@ -30,3 +31,13 @@ Everything runs in your browser:
 4. Name each track and fill in artist/album
 5. Optionally mark segments as dead space to skip them
 6. Click **Export All Tracks** to download a zip of tagged MP3s
+
+## Development
+
+No build step. Serve the directory with any static server (e.g. `python3 -m http.server`) and open `index.html`.
+
+Pure logic (time formatting, filename sanitising, the split/track model) lives in `static/lib.js` and is unit-tested:
+
+```
+npm test
+```

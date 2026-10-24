@@ -65,6 +65,7 @@ main {
 }
 
 .upload-area:hover,
+.upload-area:focus-visible,
 .upload-area.dragover {
   border-color: var(--accent);
   background: rgba(90, 103, 216, 0.06);
@@ -196,6 +197,10 @@ button:hover:not(:disabled) {
 button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+#new-file-btn {
+  color: var(--text-muted);
 }
 
 .zoom-control {

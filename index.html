@@ -15,12 +15,12 @@
   <main>
     <!-- Upload -->
     <section id="upload-section">
-      <div class="upload-area" id="upload-area">
-        <input type="file" id="file-input" accept=".mp3" hidden>
+      <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label="Choose an MP3 file">
+        <input type="file" id="file-input" accept=".mp3,audio/mpeg" hidden>
         <span class="upload-icon">&#9835;</span>
         <span class="upload-text">Drop an MP3 here or click to browse</span>
       </div>
-      <div id="upload-progress" class="hidden">
+      <div id="upload-progress" class="hidden" role="status" aria-live="polite">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
         <span id="progress-text">Loading…</span>
       </div>
@@ -51,6 +51,7 @@
       <div class="controls-row">
         <button id="play-btn" title="Play / Pause">&#9654; Play</button>
         <button id="add-marker-btn" title="Add split at playhead">&#43; Add Split</button>
+        <button id="new-file-btn" title="Load a different file">Load another file</button>
         <div class="zoom-control">
           <label for="zoom-slider">Zoom</label>
           <input type="range" id="zoom-slider" min="1" max="500" value="1">
@@ -63,13 +64,16 @@
 
       <!-- Export -->
       <button id="export-btn" class="export-btn">Export All Tracks</button>
-      <div id="export-status" class="hidden"></div>
+      <div id="export-status" class="hidden" role="status" aria-live="polite"></div>
     </section>
   </main>
 
-  <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/wavesurfer.min.js"></script>
-  <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/plugins/regions.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+  <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/wavesurfer.min.js"
+          integrity="sha384-kARVKFrjTrjXnTMsC0qhqgeHQ4Chgt+91aK2A3qnCheMOdqPmt1iV8StjFuAbjxM" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/wavesurfer.js@7.12.1/dist/plugins/regions.min.js"
+          integrity="sha384-m4kzJxowzulaP/S6HXxeqv7g5wfWBgPCyumn94x6qgVh5B0AARO5ddmxM5MgA1pd" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+          integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
   <script type="module" src="static/app.js"></script>
 </body>
 </html>
